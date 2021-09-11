@@ -5,10 +5,11 @@ use rect_utils::{detect_overlapping_pairs, display_rect_areas};
 use serde::Deserialize;
 mod rect_utils;
 
+// Get package version from .toml file
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 /// Deserialized data structure which contains some nested structures, see code
-/// comments.
+/// comments. This structure is nested and copies structure of provided .json.
 #[derive(Deserialize, Clone, Debug)]
 struct TestInput {
     // draworder should be enum {topdown, downtop}, used string for simplicity
@@ -40,7 +41,8 @@ struct RectObjDT {
     value: String,
 }
 
-/// Collects .json data
+/// Creates information about application and input args.
+/// Takes chosen .json file and deserializes it into TestInput struct.
 fn main() {
     // Basic application information
     let matches = App::new("Sophia World json test app")
@@ -52,7 +54,7 @@ fn main() {
                 .short("i")
                 .long("input")
                 .value_name("FILE")
-                .help("json file path to read")
+                .help("json file path")
                 .takes_value(true),
         )
         .get_matches();
@@ -63,14 +65,16 @@ fn main() {
         let content = process_json_file(&matches);
         let rectangles = content.objects;
 
+        // Print areas of rectangles
         display_rect_areas(&rectangles);
+
+        // Find overlapping rectangles' pairs if they exist
         let overlapping = detect_overlapping_pairs(&rectangles);
         for rect in overlapping {
             println!("Rectangles: {} and {} intersection area: {}",
             rect.0.name, rect.1.name, rect.2);
         }
     }
-
 }
 
 /// Evaluate input path and exit application if *.json file is not provided.
@@ -90,12 +94,11 @@ fn eval_input(matches: &ArgMatches) -> bool {
     }
 }
 
-/// Deserialize *.json file and print it's contents.
+/// Deserialize *.json file and return struct.
 fn process_json_file(matches: &ArgMatches) -> TestInput {
     let file = Path::new(matches.value_of("input").unwrap());
 
     let content = read_test_input_from_file(file);
-    // println!("Deserialized json: {:?}", content);
     content
 }
 
@@ -105,7 +108,6 @@ fn process_json_file(matches: &ArgMatches) -> TestInput {
 fn read_test_input_from_file<P: AsRef<Path>>(path: P) -> TestInput {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
-    // let ti: = serde_json::from_reader(reader)?;
     let ti = serde_json::from_reader(reader);
     match ti {
         Ok(ti) => return ti,

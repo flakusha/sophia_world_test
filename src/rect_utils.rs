@@ -14,11 +14,14 @@ pub fn detect_overlapping_pairs(rects: &Vec<RectObj>) ->
 Vec<(RectObj, RectObj, f32)> {
     let rlen = rects.len();
     // Construct HashSet with indices of intersecting rectangles' pairs,
+    // double the indices because they go in pairs like (i, j) and (j, i)
     let mut intersecting_indices = HashSet::<(usize, usize)>
     ::with_capacity(rlen * 2);
     let mut intersecting_rects = Vec::<(RectObj, RectObj, f32)>
     ::with_capacity(rlen);
 
+    // Use index for outer loop, because of additional code complexity for
+    // nested for loops
     let mut i = 0;
 
     while i < rlen {
@@ -33,6 +36,9 @@ Vec<(RectObj, RectObj, f32)> {
                     intersecting_indices.insert((j, i));
                     if overlap > 0f32 {
                         intersecting_rects.push(
+                            // Not so effective to clone, but it's made for
+                            // full access to data structure later on, can be
+                            // replaced just by rectangles' names
                             (r0.clone(), rect.clone(), overlap)
                         );
                     }
@@ -193,5 +199,34 @@ mod tests {
         };
 
         debug_assert_eq!(compute_overlap(&r0, &r1), 0f32);
+    }
+
+    #[test]
+    fn find_overlapping_rectangles() {
+        let r0 = RectObj{
+            x: -1f32, y: 0f32,
+            width: 2f32, height: 2f32,
+            name: "Rect0".to_string(), properties: None,
+        };
+        let r1 = RectObj{
+            x: 0f32, y: 0f32,
+            width: 2f32, height: 2f32,
+            name: "Rect1".to_string(), properties: None,
+        };
+
+        let rects = vec![r0, r1];
+        let overlap = detect_overlapping_pairs(&rects);
+
+        debug_assert_eq!(overlap[0].0.name, rects[0].name);
+        debug_assert_eq!(overlap[0].0.width, rects[0].width);
+        debug_assert_eq!(overlap[0].0.height, rects[0].height);
+        debug_assert_eq!(overlap[0].0.x, rects[0].x);
+        debug_assert_eq!(overlap[0].0.y, rects[0].y);
+        debug_assert_eq!(overlap[0].1.name, rects[1].name);
+        debug_assert_eq!(overlap[0].1.width, rects[1].width);
+        debug_assert_eq!(overlap[0].1.height, rects[1].height);
+        debug_assert_eq!(overlap[0].1.x, rects[1].x);
+        debug_assert_eq!(overlap[0].1.y, rects[1].y);
+        debug_assert_eq!(overlap[0].2, 2f32);
     }
 }
