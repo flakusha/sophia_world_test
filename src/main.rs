@@ -1,16 +1,15 @@
-use std::collections::HashMap;
-// use std::fmt::Result;
 use std::io::BufReader;
 use std::{fs::File, env, path::Path};
 use clap::{App, Arg, ArgMatches};
-use serde::{Deserialize, Serialize};
-use serde_json::Map;
+use rect_utils::{detect_overlapping_pairs, display_rect_areas};
+use serde::Deserialize;
+mod rect_utils;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 /// Deserialized data structure which contains some nested structures, see code
 /// comments.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 struct TestInput {
     // draworder should be enum {topdown, downtop}, used string for simplicity
     draworder: String,
@@ -22,19 +21,19 @@ struct TestInput {
     visible: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct RectObj {
+#[derive(Deserialize, Clone, Debug)]
+pub struct RectObj {
     name: String,
     properties: Option<RectObjD>,
     width: f32, height: f32, x: f32, y: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 struct RectObjD {
     flags: RectObjDT
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 struct RectObjDT {
     name: String,
     r#type: String,
@@ -58,8 +57,18 @@ fn main() {
         )
         .get_matches();
 
+    // Evaluate that .json file exists
     if eval_input(&matches) {
-        process_json_file(&matches);
+        // Deserialize .json
+        let content = process_json_file(&matches);
+        let rectangles = content.objects;
+
+        display_rect_areas(&rectangles);
+        let overlapping = detect_overlapping_pairs(&rectangles);
+        for rect in overlapping {
+            println!("Rectangles: {} and {} intersection area: {}",
+            rect.0.name, rect.1.name, rect.2);
+        }
     }
 
 }
@@ -81,21 +90,18 @@ fn eval_input(matches: &ArgMatches) -> bool {
     }
 }
 
-/// Deserialize *.json file and print 
-fn process_json_file(matches: &ArgMatches) {
+/// Deserialize *.json file and print it's contents.
+fn process_json_file(matches: &ArgMatches) -> TestInput {
     let file = Path::new(matches.value_of("input").unwrap());
 
-    let input = read_test_input_from_file(file);
-
-    println!("Deserialized json: {:?}", input)
-    // let reader = BufReader::new(file);
-
-    // let data: TestInput = serde_json::from_str(contents);
+    let content = read_test_input_from_file(file);
+    // println!("Deserialized json: {:?}", content);
+    content
 }
 
 /// Reads *.json file and parses it into TestInput. If there is error, panics
 /// and displays error. Original serde_json example code refused to compile and
-/// was replased with match statement
+/// was replased with match statement.
 fn read_test_input_from_file<P: AsRef<Path>>(path: P) -> TestInput {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
